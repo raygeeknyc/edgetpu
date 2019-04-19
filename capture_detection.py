@@ -17,7 +17,8 @@ import time
 import numpy as np
 import picamera
 
-import edgetpu.classification.engine
+from edgetpu.detection.engine import DetectionEngine
+
 
 
 def main():
@@ -32,7 +33,7 @@ def main():
         pairs = (l.strip().split(maxsplit=1) for l in f.readlines())
         labels = dict((int(k), v) for k, v in pairs)
 
-    engine = edgetpu.classification.engine.ClassificationEngine(args.model)
+    engine = DetectionEngine(args.model)
 
     with picamera.PiCamera() as camera:
         camera.resolution = (640, 480)
@@ -48,12 +49,14 @@ def main():
                 stream.seek(0)
                 frame = np.frombuffer(stream.getvalue(), dtype=np.uint8)
                 start_ms = time.time()
-                results = engine.ClassifyWithInputTensor(frame, top_k=1)
+  		results = engine.DetectWithImage(frame, threshold=0.05, keep_aspect_ratio=True,
+                    relative_coord=False, top_k=10)
+
                 elapsed_ms = time.time() - start_ms
                 if results:
                     logging.info("frame has {} objects".format(len(results)))
-                    for detected in results:
-                        logging.info("label: {}".format(labels[detected[0], detected[1]))
+                    for detected_object in results:
+                        logging.info("label: {}, score: {}, bounds: {}".format(labels[detected_object.label_id], detected_object.score, obj.bounding_box.flatten().tolist()))
         finally:
             logging.info("done capturing")
 
